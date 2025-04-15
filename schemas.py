@@ -15,7 +15,7 @@ class UsuarioOut(BaseModel):
     data_criacao: datetime
 
     class Config:
-        from_attributes = True  # Atualizado para Pydantic v2
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
@@ -24,3 +24,13 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     senha: str
+
+class LogAcessoOut(BaseModel):
+    id: int
+    usuario_id: Optional[int]
+    tipo_evento: str
+    data_evento: datetime
+    ip: Optional[str]
+
+    class Config:
+        from_attributes = True
