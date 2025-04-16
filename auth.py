@@ -77,33 +77,6 @@ def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_
     return {"access_token": access_token, "token_type": "bearer"}
 
 # Rota para logout (revogação de token)
-''''@auth_router.post("/logout")
-def logout(
-    request: Request,
-    authorization: str = Header(...),
-    db: Session = Depends(get_db)
-):
-    ip = request.client.host
-
-    if not authorization.startswith("Bearer "):
-        registrar_log(db, tipo_evento="logout_falha_token_ausente", ip=ip)
-        raise HTTPException(status_code=401, detail="Token ausente ou inválido")
-
-    token = authorization.split(" ")[1]
-    
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        usuario_id = int(payload.get("sub"))
-
-        revogar_token(token, usuario_id, db)
-        registrar_log(db, usuario_id=usuario_id, tipo_evento="logout_sucesso", ip=ip)
-
-        return {"detail": "Logout realizado com sucesso. Token revogado."}
-    
-    except JWTError:
-        registrar_log(db, tipo_evento="logout_falha_token_invalido", ip=ip)
-        raise HTTPException(status_code=401, detail="Token inválido")'''
-
 @auth_router.post("/logout")
 def logout(
     request: Request,
