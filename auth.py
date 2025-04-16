@@ -8,8 +8,11 @@ from typing import List
 from database import SessionLocal
 from models import Usuario, LogAcesso
 from schemas import UsuarioCreate, UsuarioOut, LoginRequest, Token
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from security import criar_token, hash_senha, verificar_senha
+from fastapi import Header
+from security import revogar_token, SECRET_KEY, ALGORITHM
+from dependencies import verificar_token_revogado
+from models import Usuario
 
 # Inicializando o Router
 auth_router = APIRouter()
@@ -72,3 +75,49 @@ def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_
     registrar_log(db, usuario_id=usuario.id, tipo_evento="login_sucesso", ip=ip)
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Rota para logout (revogação de token)
+''''@auth_router.post("/logout")
+def logout(
+    request: Request,
+    authorization: str = Header(...),
+    db: Session = Depends(get_db)
+):
+    ip = request.client.host
+
+    if not authorization.startswith("Bearer "):
+        registrar_log(db, tipo_evento="logout_falha_token_ausente", ip=ip)
+        raise HTTPException(status_code=401, detail="Token ausente ou inválido")
+
+    token = authorization.split(" ")[1]
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        usuario_id = int(payload.get("sub"))
+
+        revogar_token(token, usuario_id, db)
+        registrar_log(db, usuario_id=usuario_id, tipo_evento="logout_sucesso", ip=ip)
+
+        return {"detail": "Logout realizado com sucesso. Token revogado."}
+    
+    except JWTError:
+        registrar_log(db, tipo_evento="logout_falha_token_invalido", ip=ip)
+        raise HTTPException(status_code=401, detail="Token inválido")'''
+
+@auth_router.post("/logout")
+def logout(
+    request: Request,
+    usuario: Usuario = Depends(verificar_token_revogado),
+    db: Session = Depends(get_db)
+):
+    ip = request.client.host
+    token = request.headers.get("Authorization").split(" ")[1]
+
+    try:
+        revogar_token(token, usuario.id, db)
+        registrar_log(db, usuario_id=usuario.id, tipo_evento="logout_sucesso", ip=ip)
+        return {"detail": "Logout realizado com sucesso. Token revogado."}
+    
+    except JWTError:
+        registrar_log(db, tipo_evento="logout_falha_token_invalido", ip=ip)
+        raise HTTPException(status_code=401, detail="Token inválido")

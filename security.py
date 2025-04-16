@@ -1,6 +1,9 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
+from hashlib import sha256
+from models import TokenRevogado
+from sqlalchemy.orm import Session
 
 SECRET_KEY = "seu-segredo-aqui"
 ALGORITHM = "HS256"
@@ -19,3 +22,12 @@ def criar_token(data: dict, expires_delta: timedelta = None):
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def hash_token(token: str) -> str:
+    return sha256(token.encode()).hexdigest()
+
+def revogar_token(token: str, usuario_id: int, db: Session):
+    token_hash = sha256(token.encode()).hexdigest()
+    revogado = TokenRevogado(token_hash=token_hash, usuario_id=usuario_id)
+    db.add(revogado)
+    db.commit()
