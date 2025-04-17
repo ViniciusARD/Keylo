@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
@@ -89,3 +89,30 @@ def logout(
     except JWTError:
         registrar_log(db, tipo_evento="logout_falha_token_invalido", ip=ip)
         raise HTTPException(status_code=401, detail="Token inválido")
+
+# Rota para exclusão de conta conforme LGPD
+@auth_router.delete("/users/{id}", status_code=status.HTTP_200_OK)
+def delete_user(
+    id: int,
+    request: Request,
+    usuario: Usuario = Depends(verificar_token_revogado),
+    db: Session = Depends(get_db)
+):
+    ip = request.client.host
+
+    # Verifica se o usuário é dono da conta ou admin
+    if usuario.id != id and usuario.papel != "admin":
+        registrar_log(db, usuario_id=usuario.id, tipo_evento="exclusao_falha_permissao", ip=ip)
+        raise HTTPException(status_code=403, detail="Permissão negada para excluir este usuário.")
+
+    db_usuario = db.query(Usuario).filter(Usuario.id == id).first()
+    if not db_usuario:
+        registrar_log(db, usuario_id=usuario.id, tipo_evento="exclusao_falha_usuario_nao_encontrado", ip=ip)
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    db.delete(db_usuario)
+    db.commit()
+
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="exclusao_sucesso", ip=ip)
+
+    return {"detail": "Usuário excluído com sucesso."}
