@@ -1,7 +1,6 @@
 from fastapi import Depends, HTTPException, Request
 from jose import JWTError, jwt
-from security import SECRET_KEY, ALGORITHM
-from security import hash_token
+from security import SECRET_KEY, ALGORITHM, hash_token
 from models import TokenRevogado, Usuario
 from database import SessionLocal
 
@@ -20,8 +19,7 @@ def verificar_token_revogado(request: Request, db=Depends(get_db)):
     token = auth.split(" ")[1]
     token_hash = hash_token(token)
 
-    revogado = db.query(TokenRevogado).filter_by(token_hash=token_hash).first()
-    if revogado:
+    if db.query(TokenRevogado).filter_by(token_hash=token_hash).first():
         raise HTTPException(status_code=401, detail="Token revogado")
 
     try:

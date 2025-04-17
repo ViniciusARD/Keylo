@@ -2,8 +2,9 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
 from hashlib import sha256
-from models import TokenRevogado
 from sqlalchemy.orm import Session
+
+from models import TokenRevogado
 
 SECRET_KEY = "seu-segredo-aqui"
 ALGORITHM = "HS256"
@@ -27,7 +28,7 @@ def hash_token(token: str) -> str:
     return sha256(token.encode()).hexdigest()
 
 def revogar_token(token: str, usuario_id: int, db: Session):
-    token_hash = sha256(token.encode()).hexdigest()
+    token_hash = hash_token(token)
     revogado = TokenRevogado(token_hash=token_hash, usuario_id=usuario_id)
     db.add(revogado)
     db.commit()

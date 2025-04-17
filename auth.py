@@ -1,23 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
-from datetime import timedelta, datetime
-from jose import JWTError, jwt
-from typing import List
+from datetime import datetime
+from jose import JWTError
+
 from database import SessionLocal
 from models import Usuario, LogAcesso
 from schemas import UsuarioCreate, UsuarioOut, LoginRequest, Token
-from security import criar_token, hash_senha, verificar_senha
-from fastapi import Header
-from security import revogar_token, SECRET_KEY, ALGORITHM
+from security import criar_token, hash_senha, verificar_senha, revogar_token, SECRET_KEY, ALGORITHM
 from dependencies import verificar_token_revogado
-from models import Usuario
 
-# Inicializando o Router
 auth_router = APIRouter()
 
-# Função para obter o banco de dados
+# Dependência local para obter sessão do banco
 def get_db():
     db = SessionLocal()
     try:
@@ -25,7 +20,7 @@ def get_db():
     finally:
         db.close()
 
-# Função para registrar logs de acesso
+# Função para registrar log de acesso
 def registrar_log(db: Session, usuario_id: int = None, tipo_evento: str = "login_sucesso", ip: str = None):
     log = LogAcesso(
         usuario_id=usuario_id,
@@ -39,8 +34,7 @@ def registrar_log(db: Session, usuario_id: int = None, tipo_evento: str = "login
 # Rota para registrar novo usuário
 @auth_router.post("/register", response_model=UsuarioOut)
 def register(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-    db_usuario = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if db_usuario:
+    if db.query(Usuario).filter(Usuario.email == usuario.email).first():
         registrar_log(db, tipo_evento="registro_falha_email_duplicado", ip="127.0.0.1")
         raise HTTPException(status_code=400, detail="Email já registrado")
 
@@ -50,6 +44,7 @@ def register(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         senha_hash=hash_senha(usuario.senha),
         papel="usuario"
     )
+
     try:
         db.add(novo_usuario)
         db.commit()
@@ -60,7 +55,7 @@ def register(usuario: UsuarioCreate, db: Session = Depends(get_db)):
 
     return novo_usuario
 
-# Rota para realizar login
+# Rota de login
 @auth_router.post("/login", response_model=Token)
 def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.email == login_data.email).first()
@@ -76,7 +71,7 @@ def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_
 
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Rota para logout (revogação de token)
+# Rota de logout com revogação de token
 @auth_router.post("/logout")
 def logout(
     request: Request,
