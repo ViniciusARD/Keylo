@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
+from hashlib import sha256
 import pytz
 
-from schemas import Usuario 
+from schemas import Usuario, TokenRecuperacaoSenha, TokenRevogado
 from models import UsuarioCreate, UsuarioOut, LoginRequest, Token, ResetConfirm, ResetRequest
 from security import criar_token, hash_senha, verificar_senha, revogar_token, SECRET_KEY, ALGORITHM
 from dependencies import verificar_token_revogado, get_db, registrar_log, verificar_permissao, obter_ip_real
@@ -88,6 +89,19 @@ def solicitar_reset_senha(reset_req: ResetRequest, request: Request, db: Session
     token_data = {"sub": str(usuario.id)}
     reset_token = criar_token(token_data, timedelta(minutes=15))
 
+    # Hash do token antes de armazenar
+    token_hash = sha256(reset_token.encode()).hexdigest()
+
+    # Armazenar no banco de dados
+    expira_em = datetime.now(brasilia_tz) + timedelta(minutes=15)
+    token_entry = TokenRecuperacaoSenha(
+        token_hash=token_hash,
+        usuario_id=usuario.id,
+        expira_em=expira_em,
+    )
+    db.add(token_entry)
+    db.commit()
+
     print(f"Token de redefinição de senha para {usuario.email}: {reset_token}")
 
     registrar_log(db, usuario_id=usuario.id, tipo_evento="reset_senha_solicitado", ip=ip)
@@ -98,6 +112,7 @@ def solicitar_reset_senha(reset_req: ResetRequest, request: Request, db: Session
 @auth_router.post("/reset-password/confirm")
 def confirmar_reset_senha(reset: ResetConfirm, request: Request, db: Session = Depends(get_db)):
     ip = obter_ip_real(request)
+
     try:
         payload = jwt.decode(reset.token, SECRET_KEY, algorithms=[ALGORITHM])
         usuario_id = int(payload.get("sub"))
@@ -105,13 +120,43 @@ def confirmar_reset_senha(reset: ResetConfirm, request: Request, db: Session = D
         registrar_log(db, tipo_evento="reset_senha_token_invalido", ip=ip)
         raise HTTPException(status_code=400, detail="Token inválido ou expirado")
 
+    # Verifica o token na tabela (por hash)
+    token_hash = sha256(reset.token.encode()).hexdigest()
+    token_db = db.query(TokenRecuperacaoSenha).filter_by(
+        token_hash=token_hash,
+        usuario_id=usuario_id
+    ).first()
+
+    if not token_db:
+        registrar_log(db, tipo_evento="reset_senha_token_nao_encontrado", ip=ip)
+        raise HTTPException(status_code=400, detail="Token inválido")
+
+    if token_db.utilizado:
+        registrar_log(db, tipo_evento="reset_senha_token_utilizado", usuario_id=usuario_id, ip=ip)
+        raise HTTPException(status_code=400, detail="Token já utilizado")
+
+    if datetime.now(brasilia_tz) > token_db.expira_em.replace(tzinfo=brasilia_tz):
+        registrar_log(db, tipo_evento="reset_senha_token_expirado", usuario_id=usuario_id, ip=ip)
+        raise HTTPException(status_code=400, detail="Token expirado")
+
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
         registrar_log(db, tipo_evento="reset_senha_usuario_nao_encontrado", ip=ip)
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
+    # Atualiza a senha do usuário
     usuario.senha_hash = hash_senha(reset.nova_senha)
     usuario.data_atualizacao = datetime.now(brasilia_tz)
+
+    # Mover o token utilizado para a tabela de tokens revogados
+    token_revogado = TokenRevogado(
+        token_hash=token_hash,
+        usuario_id=usuario.id,
+    )
+    db.add(token_revogado)
+
+    # Marcar token como utilizado e salvar
+    token_db.utilizado = True
     db.commit()
 
     registrar_log(db, usuario_id=usuario.id, tipo_evento="reset_senha_concluido", ip=ip)

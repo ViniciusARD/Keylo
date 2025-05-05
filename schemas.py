@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -43,4 +43,13 @@ class TokenRevogado(Base):
     token_hash = Column(String)
     data_revogacao = Column(DateTime, default=datetime.now(brasilia_tz))
 
+class TokenRecuperacaoSenha(Base):
+    __tablename__ = "tokens_recuperacao_senha"
 
+    id = Column(Integer, primary_key=True, index=True)
+    token_hash = Column(String, nullable=False, unique=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+    usuario = relationship("Usuario")
+    criado_em = Column(DateTime, default=datetime.now(brasilia_tz))
+    expira_em = Column(DateTime, nullable=False)
+    utilizado = Column(Boolean, default=False)
