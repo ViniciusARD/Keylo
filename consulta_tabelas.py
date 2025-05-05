@@ -5,7 +5,7 @@ conn = sqlite3.connect("keylo.db")
 cursor = conn.cursor()
 
 # Consultando todos os registros da tabela de logs
-cursor.execute("SELECT * FROM tokens_revogados")
+cursor.execute("SELECT * FROM logs_acesso")
 logs = cursor.fetchall()
 
 # Exibindo os logs
