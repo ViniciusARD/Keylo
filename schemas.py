@@ -20,6 +20,7 @@ class Usuario(Base):
 
     logs = relationship("LogAcesso", back_populates="usuario", foreign_keys="[LogAcesso.usuario_id]")
     logs_responsavel = relationship("LogAcesso", back_populates="responsavel", foreign_keys="[LogAcesso.responsavel_id]")
+    refresh_tokens = relationship("RefreshToken", back_populates="usuario")
 
 class LogAcesso(Base):
     __tablename__ = "logs_acesso"
@@ -53,3 +54,14 @@ class TokenRecuperacaoSenha(Base):
     criado_em = Column(DateTime, default=datetime.now(brasilia_tz))
     expira_em = Column(DateTime, nullable=False)
     utilizado = Column(Boolean, default=False)
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token_hash = Column(String, nullable=False, unique=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    criado_em = Column(DateTime, default=datetime.now(brasilia_tz))
+    usado = Column(Boolean, default=False)
+
+    usuario = relationship("Usuario", back_populates="refresh_tokens")

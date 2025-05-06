@@ -5,8 +5,9 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from hashlib import sha256
 import pytz
+import secrets
 
-from schemas import Usuario, TokenRecuperacaoSenha, TokenRevogado
+from schemas import Usuario, TokenRecuperacaoSenha, TokenRevogado, RefreshToken
 from models import UsuarioCreate, UsuarioOut, LoginRequest, Token, ResetConfirm, ResetRequest
 from security import criar_token, hash_senha, verificar_senha, revogar_token, SECRET_KEY, ALGORITHM
 from dependencies import verificar_token_revogado, get_db, registrar_log, verificar_permissao, obter_ip_real
@@ -51,11 +52,28 @@ def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_
         registrar_log(db, tipo_evento="login_falha", ip=ip)
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
+    # Geração do Access Token
     token_data = {"sub": str(usuario.id)}
     access_token = criar_token(token_data)
+
+    # Geração do Refresh Token
+    raw_refresh_token = secrets.token_urlsafe(64)
+    refresh_token_hash = sha256(raw_refresh_token.encode()).hexdigest()
+
+    novo_refresh = RefreshToken(
+        token_hash=refresh_token_hash,
+        usuario_id=usuario.id
+    )
+    db.add(novo_refresh)
+    db.commit()
+
     registrar_log(db, usuario_id=usuario.id, tipo_evento="login_sucesso", ip=ip)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "refresh_token": raw_refresh_token,
+        "token_type": "bearer"
+    }
 
 # Rota de logout com revogação de token
 @auth_router.post("/logout")
@@ -75,6 +93,47 @@ def logout(
     except JWTError:
         registrar_log(db, tipo_evento="logout_falha_token_invalido", ip=ip)
         raise HTTPException(status_code=401, detail="Token inválido")
+
+@auth_router.post("/refresh-token")
+def renovar_token(refresh_token: str, request: Request, db: Session = Depends(get_db)):
+    ip = obter_ip_real(request)
+    hashed_token = sha256(refresh_token.encode()).hexdigest()
+
+    token_obj = db.query(RefreshToken).filter(RefreshToken.token_hash == hashed_token).first()
+
+    if not token_obj or token_obj.usado:
+        registrar_log(db, tipo_evento="refresh_token_invalido", ip=ip)
+        raise HTTPException(status_code=401, detail="Refresh token inválido ou já utilizado")
+
+    # Marcar token como usado
+    token_obj.usado = True
+    db.commit()
+
+    usuario = db.query(Usuario).filter(Usuario.id == token_obj.usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # Gerar novo Access Token
+    token_data = {"sub": str(usuario.id)}
+    novo_access_token = criar_token(token_data)
+
+    # (Opcional) Gerar um novo Refresh Token
+    novo_raw_refresh_token = secrets.token_urlsafe(64)
+    novo_hashed_refresh = sha256(novo_raw_refresh_token.encode()).hexdigest()
+    novo_token = RefreshToken(
+        token_hash=novo_hashed_refresh,
+        usuario_id=usuario.id
+    )
+    db.add(novo_token)
+    db.commit()
+
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="refresh_token_utilizado", ip=ip)
+
+    return {
+        "access_token": novo_access_token,
+        "refresh_token": novo_raw_refresh_token,
+        "token_type": "bearer"
+    }
 
 # Solicitar redefinição de senha
 @auth_router.post("/reset-password/request")
@@ -236,3 +295,4 @@ def delete_user(
     )
 
     return {"detail": "Usuário excluído com sucesso."}
+

@@ -1,11 +1,12 @@
 from fastapi import Depends, HTTPException, Request, Security
 from jose import JWTError, jwt
 from security import SECRET_KEY, ALGORITHM, hash_token
-from schemas import TokenRevogado, Usuario, LogAcesso
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from datetime import datetime
 import pytz
+
+from schemas import TokenRevogado, Usuario, LogAcesso
 
 # Obtém o fuso horário de Brasília
 brasilia_tz = pytz.timezone("America/Sao_Paulo")
