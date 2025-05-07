@@ -5,8 +5,8 @@ from fastapi.openapi.utils import get_openapi
 
 from database import Base, engine
 from auth import auth_router
-from schemas import Usuario, LogAcesso
-from models import LogAcessoOut
+from schemas import Usuario, LogAcesso, TokenRevogado, TokenRecuperacaoSenha, RefreshToken
+from models import LogAcessoOut, UsuarioOut, TokenRevogadoOut, TokenRecuperacaoSenhaOut, RefreshTokenOut
 from dependencies import verificar_token_revogado, registrar_log, get_db, verificar_permissao, obter_ip_real
 
 # Criação das tabelas no banco
@@ -45,6 +45,16 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 @app.get("/")
 def root():
     return {"msg": "API de autenticação funcionando"}
+
+@app.get("/me", dependencies=[Depends(verificar_token_revogado)])
+def get_profile(
+    request: Request,
+    usuario=Depends(verificar_token_revogado),
+    db: Session = Depends(get_db)
+):
+    ip = obter_ip_real(request)
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="acesso_perfil", ip=ip)
+    return {"id": usuario.id, "nome": usuario.nome, "email": usuario.email}
 
 @app.get("/users/{id}")
 def consultar_usuario(
@@ -87,15 +97,48 @@ def get_logs(
     registrar_log(db, usuario_id=usuario.id, tipo_evento="consulta_logs", ip=ip)
     return db.query(LogAcesso).all()
 
-@app.get("/me", dependencies=[Depends(verificar_token_revogado)])
-def get_profile(
+@app.get("/usuarios", response_model=List[UsuarioOut])
+def listar_usuarios(
     request: Request,
-    usuario=Depends(verificar_token_revogado),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(verificar_permissao(["admin"]))  # Apenas admins
 ):
     ip = obter_ip_real(request)
-    registrar_log(db, usuario_id=usuario.id, tipo_evento="acesso_perfil", ip=ip)
-    return {"id": usuario.id, "nome": usuario.nome, "email": usuario.email}
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="consulta_usuarios", ip=ip)
+    return db.query(Usuario).all()
+
+# Listar tokens revogados
+@app.get("/tokens-revogados", response_model=List[TokenRevogadoOut])
+def listar_tokens_revogados(
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(verificar_permissao(["admin"]))
+):
+    ip = obter_ip_real(request)
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="consulta_tokens_revogados", ip=ip)
+    return db.query(TokenRevogado).all()
+
+# Listar tokens de recuperação de senha
+@app.get("/tokens-recuperacao", response_model=List[TokenRecuperacaoSenhaOut])
+def listar_tokens_recuperacao(
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(verificar_permissao(["admin"]))
+):
+    ip = obter_ip_real(request)
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="consulta_tokens_recuperacao", ip=ip)
+    return db.query(TokenRecuperacaoSenha).all()
+
+# Listar refresh tokens
+@app.get("/refresh-tokens", response_model=List[RefreshTokenOut])
+def listar_refresh_tokens(
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(verificar_permissao(["admin"]))
+):
+    ip = obter_ip_real(request)
+    registrar_log(db, usuario_id=usuario.id, tipo_evento="consulta_refresh_tokens", ip=ip)
+    return db.query(RefreshToken).all()
 
 # uvicorn main:app --reload
 # http://127.0.0.1:8000/docs
