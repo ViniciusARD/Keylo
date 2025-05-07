@@ -56,7 +56,7 @@ class UsuarioOut(BaseModel):
     data_atualizacao: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TokenRevogadoOut(BaseModel):
     id: int
@@ -65,7 +65,7 @@ class TokenRevogadoOut(BaseModel):
     data_revogacao: datetime  # ← Nome correto agora
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TokenRecuperacaoSenhaOut(BaseModel):
     id: int
@@ -76,7 +76,7 @@ class TokenRecuperacaoSenhaOut(BaseModel):
     utilizado: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RefreshTokenOut(BaseModel):
     id: int
@@ -86,4 +86,4 @@ class RefreshTokenOut(BaseModel):
     usado: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True

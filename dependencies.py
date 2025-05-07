@@ -60,8 +60,19 @@ def registrar_log(
     db.commit()
 
 def verificar_permissao(papeis_permitidos: list):
-    def inner(usuario: Usuario = Depends(verificar_token_revogado)):
+    def inner(
+        request: Request,
+        db: Session = Depends(get_db),
+        usuario: Usuario = Depends(verificar_token_revogado)
+    ):
         if usuario.papel not in papeis_permitidos:
+            ip = obter_ip_real(request)
+            registrar_log(
+                db,
+                usuario_id=usuario.id,
+                tipo_evento=f"tentativa_acesso_nao_autorizado:{request.url.path}",
+                ip=ip
+            )
             raise HTTPException(status_code=403, detail="Permissão negada")
         return usuario
     return inner
