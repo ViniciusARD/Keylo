@@ -16,6 +16,7 @@ class Usuario(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
     papel = Column(String, default="usuario")
+    tentativas_login_falhas = Column(Integer, default=0)  # <--- novo campo
     data_criacao = Column(DateTime, default=datetime.now(brasilia_tz))
     data_atualizacao = Column(DateTime, default=datetime.now(brasilia_tz))
 

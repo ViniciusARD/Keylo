@@ -53,8 +53,24 @@ def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_
     ip = obter_ip_real(request)
 
     if not usuario or not verificar_senha(login_data.senha, usuario.senha_hash):
+        if usuario:
+            usuario.tentativas_login_falhas += 1
+
+            if usuario.tentativas_login_falhas >= 5:
+                usuario.papel = "inativo"
+                registrar_log(db, usuario_id=usuario.id, tipo_evento="usuario_inativado_por_falha", ip=ip)
+            
+            db.commit()
+        
         registrar_log(db, tipo_evento="login_falha", ip=ip)
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+    if usuario.papel == "inativo":
+        registrar_log(db, usuario_id=usuario.id, tipo_evento="login_falha_usuario_inativo", ip=ip)
+        raise HTTPException(status_code=403, detail="Usuário inativo. Acesso negado.")
+
+    # Zera tentativas em caso de sucesso
+    usuario.tentativas_login_falhas = 0
 
     # Geração do Access Token
     token_data = {"sub": str(usuario.id)}
@@ -68,6 +84,7 @@ def login(request: Request, login_data: LoginRequest, db: Session = Depends(get_
         token_hash=refresh_token_hash,
         usuario_id=usuario.id
     )
+
     db.add(novo_refresh)
     db.commit()
 
