@@ -10,7 +10,7 @@ import secrets
 from schemas import Usuario, TokenRecuperacaoSenha, TokenRevogado, RefreshToken
 from models import UsuarioCreate, UsuarioOut, LoginRequest, Token, ResetConfirm, ResetRequest
 from security import criar_token, hash_senha, verificar_senha, revogar_token, SECRET_KEY, ALGORITHM
-from dependencies import verificar_token_revogado, get_db, registrar_log, verificar_permissao, obter_ip_real
+from dependencies import verificar_token_revogado, get_db, registrar_log, verificar_permissao, obter_ip_real, validar_senha_complexa
 
 auth_router = APIRouter()
 
@@ -21,6 +21,10 @@ brasilia_tz = pytz.timezone("America/Sao_Paulo")
 @auth_router.post("/register", response_model=UsuarioOut)
 def register(usuario: UsuarioCreate, request: Request, db: Session = Depends(get_db)):
     ip = obter_ip_real(request)
+
+    # Verificação de senha complexa
+    validar_senha_complexa(usuario.senha)
+
     if db.query(Usuario).filter(Usuario.email == usuario.email).first():
         registrar_log(db, tipo_evento="registro_falha_email_duplicado", ip=ip)
         raise HTTPException(status_code=400, detail="Email já registrado")
@@ -231,6 +235,13 @@ def promover_usuario(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(verificar_permissao(["admin"]))
 ):
+    papeis_validos = ["admin", "gerente", "inativo"]
+    if novo_papel not in papeis_validos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Novo papel inválido. Os papéis permitidos são: {', '.join(papeis_validos)}."
+        )
+
     db_usuario = db.query(Usuario).filter(Usuario.id == id).first()
     if not db_usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")

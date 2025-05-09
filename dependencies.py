@@ -5,6 +5,7 @@ from database import SessionLocal
 from sqlalchemy.orm import Session
 from datetime import datetime
 import pytz
+import re
 
 from schemas import TokenRevogado, Usuario, LogAcesso
 
@@ -85,3 +86,15 @@ def obter_ip_real(request: Request) -> str:
     else:
         ip = request.client.host
     return ip
+
+def validar_senha_complexa(senha: str):
+    if len(senha) < 8:
+        raise HTTPException(status_code=400, detail="A senha deve ter no mínimo 8 caracteres.")
+    if not re.search(r"[A-Z]", senha):
+        raise HTTPException(status_code=400, detail="A senha deve conter pelo menos uma letra maiúscula.")
+    if not re.search(r"[a-z]", senha):
+        raise HTTPException(status_code=400, detail="A senha deve conter pelo menos uma letra minúscula.")
+    if not re.search(r"[0-9]", senha):
+        raise HTTPException(status_code=400, detail="A senha deve conter pelo menos um número.")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", senha):
+        raise HTTPException(status_code=400, detail="A senha deve conter pelo menos um caractere especial.")
