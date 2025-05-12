@@ -2,51 +2,13 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
+# Modelo de entrada para criação de usuário
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
     senha: str
 
-class UsuarioOut(BaseModel):
-    id: int
-    nome: str
-    email: EmailStr
-    papel: str
-    data_criacao: datetime
-
-    class Config:
-        from_attributes = True
-
-class Token(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    senha: str
-
-class LogAcessoOut(BaseModel):
-    id: int
-    usuario_id: Optional[int]
-    responsavel_id: Optional[int]
-    tipo_evento: str
-    detalhes: Optional[str]
-    data_evento: datetime
-    ip: Optional[str]
-    class Config:
-        from_attributes = True
-
-class ResetConfirm(BaseModel):
-    token: str
-    nova_senha: str
-
-class ResetRequest(BaseModel):
-    email: EmailStr
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
-
+# Modelo de saída com dados públicos do usuário
 class UsuarioOut(BaseModel):
     id: int
     nome: str
@@ -58,15 +20,54 @@ class UsuarioOut(BaseModel):
     class Config:
         from_attributes = True
 
-class TokenRevogadoOut(BaseModel):
+# Modelo de retorno dos tokens de autenticação
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+# Modelo para login
+class LoginRequest(BaseModel):
+    email: EmailStr
+    senha: str
+
+# Modelo de saída para logs de acesso
+class LogAcessoOut(BaseModel):
     id: int
-    usuario_id: int
-    token_hash: str
-    data_revogacao: datetime  # ← Nome correto agora
+    usuario_id: Optional[int]
+    responsavel_id: Optional[int]
+    tipo_evento: str
+    detalhes: Optional[str]
+    data_evento: datetime
+    ip: Optional[str]
 
     class Config:
         from_attributes = True
 
+# Modelo para confirmação de redefinição de senha
+class ResetConfirm(BaseModel):
+    token: str
+    nova_senha: str
+
+# Modelo para solicitação de redefinição de senha
+class ResetRequest(BaseModel):
+    email: EmailStr
+
+# Modelo para solicitar novo access token via refresh token
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+# Modelo de saída de token revogado
+class TokenRevogadoOut(BaseModel):
+    id: int
+    usuario_id: int
+    token_hash: str
+    data_revogacao: datetime
+
+    class Config:
+        from_attributes = True
+
+# Modelo de saída para token de recuperação de senha
 class TokenRecuperacaoSenhaOut(BaseModel):
     id: int
     token_hash: str
@@ -78,6 +79,7 @@ class TokenRecuperacaoSenhaOut(BaseModel):
     class Config:
         from_attributes = True
 
+# Modelo de saída para refresh token
 class RefreshTokenOut(BaseModel):
     id: int
     token_hash: str

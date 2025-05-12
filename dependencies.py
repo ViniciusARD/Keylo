@@ -9,9 +9,10 @@ import re
 
 from schemas import TokenRevogado, Usuario, LogAcesso
 
-# Obtém o fuso horário de Brasília
+# Fuso horário de Brasília
 brasilia_tz = pytz.timezone("America/Sao_Paulo")
 
+# Cria e fecha a sessão com o banco
 def get_db():
     db = SessionLocal()
     try:
@@ -19,6 +20,7 @@ def get_db():
     finally:
         db.close()
 
+# Verifica se o token é válido e não foi revogado
 def verificar_token_revogado(request: Request, db=Depends(get_db)):
     auth = request.headers.get("Authorization")
     if not auth or not auth.startswith("Bearer "):
@@ -40,26 +42,27 @@ def verificar_token_revogado(request: Request, db=Depends(get_db)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 
-# Função para registrar log de acesso
+# Registra eventos no log (ex: login, erro, tentativa inválida)
 def registrar_log(
     db: Session,
-    usuario_id: int = None,                # usuário afetado (por ex: quem foi promovido)
+    usuario_id: int = None,
     tipo_evento: str = "login_sucesso",
     ip: str = None,
-    responsavel_id: int = None,            # quem realizou a ação (por ex: o admin)
+    responsavel_id: int = None,
     detalhes: str = None
 ):
     log = LogAcesso(
         usuario_id=usuario_id,
-        responsavel_id=responsavel_id,     # novo campo
+        responsavel_id=responsavel_id,
         tipo_evento=tipo_evento,
-        detalhes=detalhes,                 # novo campo
-        data_evento = datetime.now(brasilia_tz),
+        detalhes=detalhes,
+        data_evento=datetime.now(brasilia_tz),
         ip=ip
     )
     db.add(log)
     db.commit()
 
+# Verifica se o usuário tem permissão com base no papel
 def verificar_permissao(papeis_permitidos: list):
     def inner(
         request: Request,
@@ -78,7 +81,7 @@ def verificar_permissao(papeis_permitidos: list):
         return usuario
     return inner
 
-# Função utilitária para pegar o IP real
+# Obtém o IP real do usuário
 def obter_ip_real(request: Request) -> str:
     x_forwarded_for = request.headers.get('X-Forwarded-For')
     if x_forwarded_for:
@@ -87,6 +90,7 @@ def obter_ip_real(request: Request) -> str:
         ip = request.client.host
     return ip
 
+# Verifica se a senha atende aos critérios de segurança
 def validar_senha_complexa(senha: str):
     if len(senha) < 8:
         raise HTTPException(status_code=400, detail="A senha deve ter no mínimo 8 caracteres.")
