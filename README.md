@@ -81,33 +81,6 @@ Body:
 }
 ```
 
-Solicitar redefinição de senha:
-
-```
-POST /password/request-reset
-```
-
-Body:
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-Redefinir senha:
-
-```
-POST /password/reset
-```
-
-Body:
-```json
-{
-  "token": "token_recebido_por_email",
-  "new_password": "NovaSenhaSegura123!"
-}
-```
-
 ## 🔐 Segurança e Conformidade
 
 - Hashing de senhas com bcrypt via Passlib.
