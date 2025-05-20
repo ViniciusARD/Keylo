@@ -37,18 +37,18 @@ Keylo é uma API de autenticação e controle de acesso desenvolvida com FastAPI
 ```
 keylo/
 │
-├── main.py                # Ponto de entrada da aplicação
-├── models.py              # Definição das tabelas do banco de dados
-├── schemas.py             # Schemas Pydantic para entrada e saída de dados
-├── auth.py                # Lógica de autenticação e geração de tokens
-├── seecurity.py           # Rotas e lógica de registro, login e redefinição
-├── promover_user_admin.py # Implementação do RBAC
-├── consultar_tabelas.py   # Registro e consulta de logs
-├── dependencies.py        # Dependências reutilizáveis
-├── database.py            # Conexão e inicialização do SQLite
+├── main.py                # Ponto de entrada da aplicação, responsável por inicializar o servidor e configurar as rotas
+├── models.py              # Definição dos modelos ORM que representam as tabelas do banco de dados
+├── schemas.py             # Definições dos schemas Pydantic para validação e serialização de dados de entrada e saída
+├── auth.py                # Implementação da lógica de autenticação, incluindo geração e validação de tokens JWT
+├── security.py            # Rotas e lógica relacionadas a registro de usuários, login e redefinição de senha
+├── promover_user_admin.py # Script para promover um usuário específico ao papel de administrador na aplicação
+├── consultar_tabelas.py   # Funções para consulta direta e manipulação das tabelas no banco de dados
+├── dependencies.py        # Definição de dependências reutilizáveis para injeção em rotas e serviços
+├── database.py            # Configuração e inicialização da conexão com o banco de dados SQLite
 │
-├── requirements.txt
-└── README.md
+├── requirements.txt       # Lista das dependências do projeto
+└── README.md              # Documentação básica do projeto, incluindo instruções de instalação e uso
 ```
 
 ## 🔑 Exemplos de Uso
