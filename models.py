@@ -83,7 +83,7 @@ class TokenRecuperacaoSenhaOut(BaseModel):
 class RefreshTokenOut(BaseModel):
     id: int
     token_hash: str
-    usuario_id: int
+    usuario_id: Optional[int] 
     criado_em: datetime
     usado: bool
 

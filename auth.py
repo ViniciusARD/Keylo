@@ -273,7 +273,7 @@ def alterar_papel_usuario(
     usuario: Usuario = Depends(verificar_permissao(["admin"]))  # Verifica se o usuário autenticado tem permissão de 'admin'
 ):
     # Lista de papéis válidos que um usuário pode ter
-    papeis_validos = ["admin", "gerente", "inativo"]
+    papeis_validos = ["admin", "gerente", "inativo", "usuario"]
     
     # Verifica se o novo papel é válido
     if novo_papel not in papeis_validos:
